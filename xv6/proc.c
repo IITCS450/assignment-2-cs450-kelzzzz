@@ -83,7 +83,6 @@ allocproc(void)
       goto found;
 
   //init priority to 1
-  //TODO inheritance?
   p->priority = 1;
   release(&ptable.lock);
   return 0;
@@ -186,7 +185,7 @@ fork(void)
   int i, pid;
   struct proc *np;
   struct proc *curproc = myproc();
-
+  int np_prio = 0 + curproc->priority; //get prio for child without pointing to the other proc
   // Allocate process.
   if((np = allocproc()) == 0){
     return -1;
@@ -197,6 +196,7 @@ fork(void)
     kfree(np->kstack);
     np->kstack = 0;
     np->state = UNUSED;
+    np->priority = np_prio; //copy parents priority to child
     return -1;
   }
   np->sz = curproc->sz;
@@ -537,19 +537,20 @@ procdump(void)
 }
 int setpriority(int pid, int prio){
 	  struct proc *p;
-	  acquire(&ptable.lock);
-	  if(prio < 0 || prio > 2){
+	  acquire(&ptable.lock); //lock
+	  if(prio < 0 || prio > 2){ //check prio number
 	  	  release(&ptable.lock);
+		  cprintf("Priority number out of range.\n");
 		  return -1;
 	  }
 	  for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
 		  if(p->pid == pid){
-			  p->priority = prio;
-			  release(&ptable.lock);
+			  p->priority = prio; //match pid and update
+			  release(&ptable.lock); //release lock
 			  return 0;
 		   }
 	  }      
-	  
-	  release(&ptable.lock);
+	  cprintf("No process of id %d found.\n", pid);
+	  release(&ptable.lock); 
 	  return -1;
 }
