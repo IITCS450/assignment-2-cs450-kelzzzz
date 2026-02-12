@@ -82,15 +82,13 @@ allocproc(void)
     if(p->state == UNUSED)
       goto found;
 
-  //init priority to 1
-  p->priority = 1;
   release(&ptable.lock);
   return 0;
 
 found:
   p->state = EMBRYO;
   p->pid = nextpid++;
-
+  p->priority = 1; //set default priority
   release(&ptable.lock);
 
   // Allocate kernel stack.
@@ -185,7 +183,6 @@ fork(void)
   int i, pid;
   struct proc *np;
   struct proc *curproc = myproc();
-  int np_prio = 0 + curproc->priority; //get prio for child without pointing to the other proc
   // Allocate process.
   if((np = allocproc()) == 0){
     return -1;
@@ -196,7 +193,6 @@ fork(void)
     kfree(np->kstack);
     np->kstack = 0;
     np->state = UNUSED;
-    np->priority = np_prio; //copy parents priority to child
     return -1;
   }
   np->sz = curproc->sz;
@@ -217,6 +213,7 @@ fork(void)
 
   acquire(&ptable.lock);
 
+  np->priority = curproc->priority; //copy parents priority to child
   np->state = RUNNABLE;
 
   release(&ptable.lock);
@@ -545,8 +542,10 @@ int setpriority(int pid, int prio){
 	  }
 	  for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
 		  if(p->pid == pid){
+			  cprintf("Priority before set: %d\n",p->priority);
 			  p->priority = prio; //match pid and update
 			  release(&ptable.lock); //release lock
+			  cprintf("Priority after set: %d\n",p->priority);
 			  return 0;
 		   }
 	  }      
